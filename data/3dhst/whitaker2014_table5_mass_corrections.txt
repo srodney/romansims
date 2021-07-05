@@ -1,0 +1,35 @@
+# Whitaker et al. 2014
+# Table 5 
+# Estimated Emission-line Contamination to Stellar Mass
+#
+# Notes. Deltalog M_sstarf = log M_sstarf, before - log M_sstarf, after
+# in logarithmic units of dex. Here, "before" signifies the original stellar
+# masses and "after" signifies the new stellar masses when subtracting the
+# estimated redshift and mass-dependent contaminating emission-line flux
+# for [O II], Hbeta, [O III] and Halpha in the relevant filters.
+#
+# Columns give log(M_sstarf/M_sun) and then deltalogM estimates
+# in each of the following redshift bins:
+#  0.5 < z < 1.0   (we apply this for all galaxies z<1)
+#  1.0 < z < 1.5
+#  1.5 < z < 2.0
+#  2.0 < z < 2.5   (applied to all galaxies z>2)
+#
+# logMmin  logMmax    z<1     1<z<1.5  1.5<z<2  2<z
+ 8.0         8.2      0.090    0.232   0.337   0.504
+ 8.2         8.4      0.077    0.170   0.337   0.504
+ 8.4         8.6      0.062    0.119   0.295   0.507
+ 8.6         8.8      0.049    0.084   0.231   0.483
+ 8.8         9.0      0.035    0.050   0.192   0.439
+ 9.0         9.2      0.031    0.022   0.152   0.361
+ 9.2         9.4      0.026    0.006   0.094   0.283
+ 9.4         9.6      0.030    0.004   0.059   0.187
+ 9.6         9.8      0.027    0.004   0.033   0.123
+ 9.8         10.0     0.026    0.004   0.016   0.088
+10.0         10.2     0.017    0.007   0.011   0.070
+10.2         10.4     0.010    0.009   0.008   0.049
+10.4         10.6     0.011    0.013   0.001   0.037
+10.6         10.8     0.006    0.010   0.004   0.031
+10.8         11.0     0.004    0.013   0.006   0.023
+11.0         11.2     0.003    0.004   0.006   0.025
+11.2         11.4     0.000    0.005   0.033   0.000
