@@ -14,11 +14,11 @@ import seaborn as sns
 import eazyseds
 
 __VERBOSE__ = True
-__3DHST_DATADIR__ =  os.path.abspath('./data/3DHST/')
+__3DHST_DATADIR__ =  os.path.abspath('../data/3DHST/')
 __3DHST_MASTERCAT__ =  '3dhst.v4.1.5.master.fits'
 __3DHST_PHOTCAT__ =  '3dhst_master.phot.v4.1.cat.fits'
 __3DHST_MASSCORRECTIONS__ = 'whitaker2014_table5_mass_corrections.txt'
-__EAZYPY_DATADIR__ =  os.path.abspath('./data/eazypy/')
+__EAZYPY_DATADIR__ =  os.path.abspath('../data/eazypy')
 
 _LOGSSFR_MIN=-14
 _LOGSSFR_MAX=-2

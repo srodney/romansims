@@ -16,12 +16,12 @@ __EAZY_FLAMBDA_UNIT__ = units.erg / units.second / (units.cm*units.cm) / units.A
 __EAZY_WAVE_UNIT__ = units.Angstrom
 #__FNU_UNIT__ = units.erg / units.second / (units.cm*units.cm) / units.Hz
 
-__EAZYPY_DATADIR__ =  os.path.abspath('./data/eazypy/')
+__EAZYPY_DATADIR__ =  os.path.abspath('../data/eazypy/')
 __EAZY_TEMPLATE_FILENAME__ =  os.path.join(
 __EAZYPY_DATADIR__, 'eazy_13_spectral_templates.dat')
 __NEAZYTEMPLATES__ = 13
 
-__FILTER_DATADIR__ = os.path.abspath('./data/roman_filters')
+__FILTER_DATADIR__ = os.path.abspath('../data/roman_filters')
 
 
 def register_roman_filters(filterdir=__FILTER_DATADIR__):
