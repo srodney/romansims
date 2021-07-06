@@ -618,8 +618,7 @@ class SNANAHostLib():
                  ='AH18PW' : the piecewise sSFR model (Andersen & Hjorth 2018)
         """
 
-        wgtmap_str = "\n\nNVAR_WGTMAP: 2 VARNAMES_WGTMAP: logssfr logmass\n"\
-                     "# logssfr logmass WGT SNMAGSHIFT\n\n"
+        wgtmap_str = "\n\nNVAR_WGTMAP: 2 VARNAMES_WGTMAP: logssfr logmass WGT SNMAGSHIFT\n\n"
         logssfr_gridpoints = np.arange(_LOGSSFR_MIN,
                                        _LOGSSFR_MAX + logssfr_stepsize,
                                        logssfr_stepsize)
