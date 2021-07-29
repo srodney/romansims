@@ -17,6 +17,7 @@ __VERBOSE__ = True
 __3DHST_DATADIR__ =  os.path.abspath('../data/3DHST/')
 __3DHST_MASTERCAT__ =  '3dhst.v4.1.5.master.fits'
 __3DHST_PHOTCAT__ =  '3dhst_master.phot.v4.1.cat.fits'
+__3DHST_GALFIT_ROOTNAME__ = '_3dhst.v4.1_f160w.galfit'
 __3DHST_MASSCORRECTIONS__ = 'whitaker2014_table5_mass_corrections.txt'
 __EAZYPY_DATADIR__ =  os.path.abspath('../data/eazypy')
 
@@ -92,6 +93,7 @@ class Catalog3DHST(GalaxyCatalog):
         self.subset_selected = False
         self.eazy_coefficients_appended = False
         self.photcat_params_appended = False
+        self.galfit_params_appended = False
 
         if load_simulation_catalog is not None:
             # when the user provides an input filename, we assume it is
@@ -128,10 +130,13 @@ class Catalog3DHST(GalaxyCatalog):
          (3.5GHz 6-core Intel Xeon).
 
         """
+
+        # Append columns next: have to do these before adjusting the galaxy IDs
+        self.append_galfit_params()
+
         # Select the 'clean' subset of galaxies first (reduce computation time)
         self.select_clean_galaxies()
 
-        # Append columns next: have to do these before adjusting the galaxy IDs
         self.append_photcat_params()
         self.append_eazy_coefficients()
 
@@ -181,6 +186,9 @@ class Catalog3DHST(GalaxyCatalog):
         """Select the subset of galaxies that have measurements for
         redshift, mass, star formation rate and no flags of concern
         """
+        if not self.galfit_params_appended:
+            print("Missing required galfit params. Run append_galfit_params() then try again.")
+            return
         if self.subset_selected:
             print("Subset selections already applied. Doing nothing.")
             return
@@ -191,7 +199,8 @@ class Catalog3DHST(GalaxyCatalog):
         igotmass = self.mastercat['lmass']>0
         igotsfr = self.mastercat['sfr']>-90
         ilowsfr = self.mastercat['sfr']<10000
-        igood = igotz & igotmass & igotsfr & ilowsfr #& inotstar
+        igotgalfit = self.mastercat['n0_sersic']>0
+        igood = igotz & igotmass & igotsfr & ilowsfr & igotgalfit
         self.mastercat = self.mastercat[igood]
 
         if verbose:
@@ -301,15 +310,78 @@ class Catalog3DHST(GalaxyCatalog):
         self.mastercat = table.join(self.mastercat, photcatsubset,
                                     keys=['field', 'id'])
 
+
         # Add a new column that approximates the FWHM of each galaxy, using
         # the kron_radius * semiminor axis.
-        fwhmvals = self.mastercat['kron_radius'] *  self.mastercat['b_image']
+        fwhmvals = 2 * (self.mastercat['a_image'] + self.mastercat['b_image'])
+        # ALTERNATE FWHM APPROXIMATION :
+        # fwhmvals = self.mastercat['kron_radius'] *  self.mastercat['b_image']
         fwhmcol = Column(name='fwhm', data=fwhmvals)
         self.mastercat.add_column(fwhmcol)
 
         self.photcat_params_appended = True
         if verbose:
             print(f"photcat parameters appended for each galaxy.")
+            print(f"length of mastercat = {len(self.mastercat):d}")
+        return
+
+    def append_galfit_params(self,
+                             datadir = __3DHST_DATADIR__,
+                             galfitfile_rootname = __3DHST_GALFIT_ROOTNAME__,
+                             verbose=__VERBOSE__):
+        """Read in the galfit info and append columns that provide useful
+        shape info:  re, n, q, and pa
+
+        Default uses the 3DHST galfit catalogs produced by Arjen van der Wel:
+         https://www2.mpia-hd.mpg.de/homes/vdwel/3dhstcandels.html
+
+        Parameters:
+        select_clean :: bool
+           If True, remove any galaxy from the master catalog that does not
+           have a galfit result (flag==3 and therefore missing n)
+           TODO: allow for higher levels of cleaning, like remove flag==2?
+        """
+        if self.has_unique_sim_ids:
+            print("You can not append galfit parameters after the IDs \n"
+                  " have been adjusted. ")
+            return
+        if self.galfit_params_appended:
+            print("Galfit parameters already appended. Doing nothing.")
+            return
+        if verbose:
+            print(f"Appending galfit parameters (re,n,q,pa)...")
+
+        # Load the 3DHST galfit catalogs, field by field
+        galfitcat = None
+        for field in ['goodss', 'goodsn', 'uds', 'aegis', 'cosmos']:
+            galfitfilename = os.path.join(
+                datadir, f'{field}' + galfitfile_rootname)
+            fieldcat = Table.read(galfitfilename,
+                                   format='ascii.commented_header')
+            fieldcat.rename_column('NUMBER', 'id')
+            fieldcat.rename_column('n', 'n0_sersic')
+            fieldcat.rename_column('q', 'q_sersic')
+            fieldcat.rename_column('re', 're_sersic')
+            fieldcat.rename_column('pa', 'pa_sersic')
+            fieldnamecol = Column(data=[field for i in range(len(fieldcat))],
+                                  name='field')
+            fieldcat.add_column(fieldnamecol)
+
+            # Extract just the columns of interest from the galfitcat
+            fieldsubset = fieldcat[['field','id','re_sersic','n0_sersic',
+                                    'q_sersic','pa_sersic']]
+            if galfitcat is None:
+                galfitcat = fieldsubset
+            else:
+                galfitcat = table.vstack([galfitcat, fieldsubset])
+
+        # Join the composite galfit cat to the mastercat
+        self.mastercat = table.join(self.mastercat, galfitcat,
+                                    keys=['field', 'id'])
+
+        self.galfit_params_appended = True
+        if verbose:
+            print(f"galfit parameters appended for each galaxy.")
             print(f"length of mastercat = {len(self.mastercat):d}")
         return
 
@@ -466,14 +538,22 @@ class Catalog3DHST(GalaxyCatalog):
         b = Column(name='b', data=self.mastercat['b_image'], dtype=float)
         kronrad = Column(name='kron_radius', data=self.mastercat['kron_radius'], dtype=float)
         fwhm = Column(name='fwhm', data=self.mastercat['fwhm'], dtype=float)
+        n0 = Column(name='n0_sersic', data=self.mastercat['n0_sersic'], dtype=float)
+        re = Column(name='re_sersic', data=self.mastercat['re_sersic'], dtype=float)
+        q = Column(name='q_sersic', data=self.mastercat['q_sersic'], dtype=float)
+        pa = Column(name='pa_sersic', data=self.mastercat['pa_sersic'], dtype=float)
 
         # Make the Table
         columnlist = [idsim, z, ra, dec, id3dhst, ifield, field,
                       logsfr, logmass, logssfr, av, a, b, kronrad, fwhm,
+                      n0, re, q, pa
                       ]
 
-        for band in ['r062', 'z087', 'y106', 'j129','h158', 'w146', 'f184']:
-            columnlist.append(self.mastercat[band])
+        for band, snanabandname in zip(
+                ['r062', 'z087', 'y106', 'j129','h158', 'w146', 'f184'],
+                ['R_obs', 'Z_obs', 'Y_obs', 'J_obs','H_obs', 'W_obs', 'F_obs']):
+            newbandcol = Column(data=self.mastercat[band], name=snanabandname)
+            columnlist.append(newbandcol)
 
         for icoeff in range(13):
             coeffcolname = f'COEFF_SPECBASIS{icoeff:02d}'
@@ -668,7 +748,7 @@ DOCUMENTATION:
     - {len(self.galdatatable)} entries
     - includes 13 eazy-spectral coefficients (COEFF_SPECBASIS_XX) to construct host spectrum
     - galaxy properties (logsfr, logmass, logssfr) are derived from real 3DHST galaxies
-    - generated using the romanz code from github.com/srodney/roman-sn-redshifts
+    - generated using the catalogs.py module from github.com/srodney/romansims
     VERSIONS:
     - DATE:  {datetime.today().strftime('%Y-%m-%d')}
     - AUTHORS: Roman SN SIT
@@ -681,14 +761,17 @@ DOCUMENTATION_END:
     def HOSTLIB_COLUMN_HDRLINE(self):
         headerstring = " ".join(
             ["VARNAMES:", "GALID", "RA_GAL", "DEC_GAL", "ZTRUE", "ZERR",
-             "logsfr", 'logmass', 'logssfr', 'a', 'b', 'kron_radius', 'FWHM',
-             'r062', 'z087', 'y106', 'j129', 'h158', 'w146', 'f184'] + \
+             "logsfr", 'logmass', 'logssfr',
+             'n0_sersic', 're_sersic', 'a', 'b', 'kron_radius', 'FWHM',
+             'R_obs', 'Z_obs', 'Y_obs', 'J_obs', 'H_obs', 'W_obs', 'F_obs'] + \
             [f'COEFF_SPECBASIS{i:02d}' for i in range(13)] + ["\n"])
         return headerstring
 
-
-    def write_hostlib(self, filename, default_zerr=0.001, overwrite=False):
-        """Write out the catalog as a text file in the SNANA Hostlib format.
+    def write_wgtmap(self, filename, overwrite=False):
+        """Write out a weightmap indicating the probability of any given
+        galaxy hosting a Type Ia SN, based on the star formation rate and mass
+        of the galaxy.   The output is a stand-alone text file in the
+        SNANA WGTMAP format.
         """
         if not overwrite:
             if os.path.exists(filename):
@@ -699,6 +782,31 @@ DOCUMENTATION_END:
         fout.write(self.HOSTLIB_DOCSTRING)
         wgtmap_block = self.mk_wgtmap_block()
         fout.write(wgtmap_block)
+        return
+
+    def write_hostlib(self, filename, include_weightmap=False,
+                      default_zerr=0.001, overwrite=False):
+        """Write out the catalog as a text file in the SNANA Hostlib format.
+
+        Parameters
+        ----------
+        include_weightmap :: bool  - Indicates whether to include a text block
+           at the top of the file that provides the map for weighting galaxies
+           to define the probability of hosting a SNIa.  Recommended to keep
+           this as False and make a separate stand-alone WGTMAP using the
+           write_wgtmap() function.
+        """
+        if not overwrite:
+            if os.path.exists(filename):
+                print(f"{filename} exists. Use overwrite=True to overwrite.")
+                return
+
+        fout = open(filename, mode='w')
+        fout.write(self.HOSTLIB_DOCSTRING)
+
+        if include_weightmap:
+            wgtmap_block = self.mk_wgtmap_block()
+            fout.write(wgtmap_block)
 
         fout.write(self.HOSTLIB_COLUMN_HDRLINE)
         for galdataline in self.galdatatable:
@@ -708,17 +816,19 @@ DOCUMENTATION_END:
                       f"{galdataline['logsfr']:8.4f} "+ \
                       f"{galdataline['logmass']:8.4f} "+ \
                       f"{galdataline['logssfr']:8.4f} "+ \
+                      f"{galdataline['n0_sersic']:6.2f} "+ \
+                      f"{galdataline['re_sersic']:6.2f} "+ \
                       f"{galdataline['a']:6.2f} "+ \
                       f"{galdataline['b']:6.2f} "+ \
                       f"{galdataline['kron_radius']:6.2f} "+ \
                       f"{galdataline['fwhm']:6.2f} "+ \
-                      f"{galdataline['r062']:6.2f} "+ \
-                      f"{galdataline['z087']:6.2f} "+ \
-                      f"{galdataline['y106']:6.2f} "+ \
-                      f"{galdataline['j129']:6.2f} "+ \
-                      f"{galdataline['h158']:6.2f} "+ \
-                      f"{galdataline['w146']:6.2f} "+ \
-                      f"{galdataline['f184']:6.2f} "
+                      f"{galdataline['R_obs']:6.2f} "+ \
+                      f"{galdataline['Z_obs']:6.2f} "+ \
+                      f"{galdataline['Y_obs']:6.2f} "+ \
+                      f"{galdataline['J_obs']:6.2f} "+ \
+                      f"{galdataline['H_obs']:6.2f} "+ \
+                      f"{galdataline['W_obs']:6.2f} "+ \
+                      f"{galdataline['F_obs']:6.2f} "
 
             for i in range(0,13,1):
                 specbasiscoeff = galdataline[f'COEFF_SPECBASIS{i:02d}']
@@ -729,7 +839,7 @@ DOCUMENTATION_END:
             outline += "\n"
             fout.write(outline)
         fout.close()
-
+        return
 
 class CatalogBasedRedshiftSim(GalaxyCatalog):
     """Class for projecting redshift completeness from an input
