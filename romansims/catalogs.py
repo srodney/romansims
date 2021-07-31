@@ -534,19 +534,19 @@ class Catalog3DHST(GalaxyCatalog):
         logmass = Column(name='logmass', data=self.mastercat['lmass_corrected'], dtype=float)
         logssfr = Column(name='logssfr', data=logsfr.data-logmass.data, dtype=float)
         av = Column(name='Av', data=self.mastercat['Av'], dtype=float)
-        a = Column(name='a', data=self.mastercat['a_image'], dtype=float)
-        b = Column(name='b', data=self.mastercat['b_image'], dtype=float)
+        a = Column(name='a0_sersic', data=self.mastercat['a_image'], dtype=float)
+        b = Column(name='b0_sersic', data=self.mastercat['b_image'], dtype=float)
         kronrad = Column(name='kron_radius', data=self.mastercat['kron_radius'], dtype=float)
         fwhm = Column(name='fwhm', data=self.mastercat['fwhm'], dtype=float)
         n0 = Column(name='n0_sersic', data=self.mastercat['n0_sersic'], dtype=float)
         re = Column(name='re_sersic', data=self.mastercat['re_sersic'], dtype=float)
         q = Column(name='q_sersic', data=self.mastercat['q_sersic'], dtype=float)
-        pa = Column(name='pa_sersic', data=self.mastercat['pa_sersic'], dtype=float)
+        a_rot = Column(name='a_rot', data=self.mastercat['pa_sersic'], dtype=float)
 
         # Make the Table
         columnlist = [idsim, z, ra, dec, id3dhst, ifield, field,
                       logsfr, logmass, logssfr, av, a, b, kronrad, fwhm,
-                      n0, re, q, pa
+                      n0, re, q, a_rot
                       ]
 
         for band, snanabandname in zip(
@@ -762,7 +762,8 @@ DOCUMENTATION_END:
         headerstring = " ".join(
             ["VARNAMES:", "GALID", "RA_GAL", "DEC_GAL", "ZTRUE", "ZERR",
              "logsfr", 'logmass', 'logssfr',
-             'n0_sersic', 're_sersic', 'a', 'b', 'kron_radius', 'FWHM',
+             'n0_sersic', 'a_rot', 'a0_sersic', 'b0_sersic',
+             'kron_radius', 'FWHM',
              'R_obs', 'Z_obs', 'Y_obs', 'J_obs', 'H_obs', 'W_obs', 'F_obs'] + \
             [f'COEFF_SPECBASIS{i:02d}' for i in range(13)] + ["\n"])
         return headerstring
@@ -817,9 +818,9 @@ DOCUMENTATION_END:
                       f"{galdataline['logmass']:8.4f} "+ \
                       f"{galdataline['logssfr']:8.4f} "+ \
                       f"{galdataline['n0_sersic']:6.2f} "+ \
-                      f"{galdataline['re_sersic']:6.2f} "+ \
-                      f"{galdataline['a']:6.2f} "+ \
-                      f"{galdataline['b']:6.2f} "+ \
+                      f"{galdataline['a_rot']:6.2f} "+ \
+                      f"{galdataline['a0_sersic']:6.2f} "+ \
+                      f"{galdataline['b0_sersic']:6.2f} "+ \
                       f"{galdataline['kron_radius']:6.2f} "+ \
                       f"{galdataline['fwhm']:6.2f} "+ \
                       f"{galdataline['R_obs']:6.2f} "+ \
